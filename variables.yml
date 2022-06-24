@@ -1,0 +1,20 @@
+# Host configuration
+PORT: 8081
+HOST: localhost
+NODE_ENV: development
+HOST_URL: your_url
+COOKIE_ENCRYPT_PWD: your_pass
+# Okta configuration
+OKTA_ORG_URL: your_okta_url
+OKTA_CLIENT_ID: your_id
+OKTA_CLIENT_SECRET: your_secret
+# Postgres configuration
+PGHOST: your_db_ip
+PGUSERNAME: postgres
+PGDATABASE: postgres
+PGPASSWORD: P0$tgres
+PGPORT: 5432
+
+
+
+

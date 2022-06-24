@@ -1,0 +1,115 @@
+---
+- hosts: webservers
+  become: true
+  become_user: root
+  vars_files:
+    - "./variables.yml"
+  tasks:
+
+#install ngins on the server
+    - name: install nginx
+      apt:
+        name: nginx
+        state: latest
+
+#change the default configurations of nginx    
+    - name: change nginx default content
+      ansible.builtin.blockinfile:
+        path: /etc/nginx/sites-available/default
+        marker: "{mark}"
+        marker_begin: "server {"
+        marker_end: "}"
+        block: |-
+            listen 8080 default_server;
+              listen [::]:8080 default_server;
+              location / {
+                proxy_pass http://localhost:8081;
+                proxy_http_version 1.1;
+                proxy_set_header Upgrade $http_upgrade;
+                proxy_set_header Connection keep-alive;
+                proxy_set_header Host $host;
+                proxy_cache_bypass $http_upgrade;
+              }
+
+#get installation file of nodejs 14    
+    - name: get nodejs 14 installation
+      shell: |
+        curl -fsSL https://deb.nodesource.com/setup_14.x | sudo -E bash -
+
+
+#install nodejs 14
+    - name: "Install nodejs"
+      become: true
+      become_user: root
+      apt:
+        update_cache: yes
+        name: nodejs
+        state: present 
+
+#clone app source code
+    - name: get git repo
+      ansible.builtin.git:
+        repo: 'https://github.com/vitalikozokin/bootcamp-app.git'
+        dest: /home/ubuntu/bootcamp-app/
+
+#create .env file file project
+    - name: create .ENV FILE 
+      ansible.builtin.file:
+        path: /home/ubuntu/bootcamp-app/.env
+        state: touch
+        mode: '0722'
+
+#add params to .env file
+    - name: add .env file content
+      ansible.builtin.blockinfile:
+        path: /home/ubuntu/bootcamp-app/.env
+        block: |
+          # Host configuration
+          PORT={{PORT}}
+          HOST={{HOST}}
+          NODE_ENV={{NODE_ENV}}
+          HOST_URL={{HOST_URL}}
+          COOKIE_ENCRYPT_PWD={{COOKIE_ENCRYPT_PWD}}
+          # Okta configuration
+          OKTA_ORG_URL={{OKTA_ORG_URL}}
+          OKTA_CLIENT_ID={{OKTA_CLIENT_ID}}
+          OKTA_CLIENT_SECRET={{OKTA_CLIENT_SECRET}}
+          # Postgres configuration
+          PGHOST={{PGHOST}}
+          PGUSERNAME={{PGUSERNAME}}
+          PGDATABASE={{PGDATABASE}}
+          PGPASSWORD={{PGPASSWORD}}
+          PGPORT={{PGPORT}}
+
+#install all packages of project
+    - name: install weight tracker packages
+      npm:
+        path: /home/ubuntu/bootcamp-app/
+
+#initialize db 
+    - name: init-db
+      become: true
+      become_user: root
+      shell: |
+        cd /home/ubuntu/bootcamp-app
+        sudo npm run initdb
+
+#configure pm2 service for app
+    - name: pm2 package
+      become: true
+      become_user: root
+      shell: |
+        cd /home/ubuntu/bootcamp-app/
+        sudo npm install pm2 -g
+        sudo pm2 start /home/ubuntu/bootcamp-app/src/index.js
+        sudo pm2 startup ubuntu
+        
+#restart nginx service
+    - name: restart nginx
+      service: 
+        name: nginx
+        enabled: yes
+        state: restarted
+
+  
+    
